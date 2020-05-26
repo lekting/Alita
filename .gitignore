@@ -1,0 +1,7 @@
+# node.js
+#
+node_modules/
+videos/
+npm-debug.log
+yarn-error.log
+package-lock.json
