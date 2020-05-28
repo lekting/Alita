@@ -6,12 +6,12 @@ const inquirer = require('inquirer');
 
 export default class instagram {
 
-    user: AccountRepositoryLoginResponseLogged_in_user = null;
-    ig: IgApiClient = null;
+    user: AccountRepositoryLoginResponseLogged_in_user;
+    ig: IgApiClient;
+    mongoClient: mongoWorker;
     
-    private login: string = '';
-    private password: string = '';
-    private mongoClient: mongoWorker = null;
+    private login: string;
+    private password: string;
     private expire_time: number = 86400;
     private forbidden_names: Array<string> = [ 'shop', 'anime', 'magazin' ];
 

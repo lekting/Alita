@@ -1,7 +1,7 @@
 export default class mongoWorker {
 
-    private database: any = '';
-    private mongoConnection: any = null;
+    private database: any;
+    private mongoConnection: any;
 
     constructor(database: string, mongoConnection: any) {
 
@@ -13,11 +13,12 @@ export default class mongoWorker {
         return new Promise(resolve => resolve(this.mongoConnection.close()));
     }
 
-    findSomeSync(collection: string, query: object, projectile: object, callback: (data: any) => void = () => {}, limit: number = 1000) {
+    findSomeSync(collection: string, query: object, projectile: object, callback: (data: any) => void = () => {}, limit?: number): void {
         if(collection === null || query === null) {
             callback(null);
             return;
         }
+        limit = limit || 1000;
 
         if(projectile !== undefined) {
             this.database.collection(collection).find(query).limit(limit).project(projectile).toArray((_: any, colls: any) => callback(colls));
@@ -27,15 +28,15 @@ export default class mongoWorker {
         this.database.collection(collection).find(query).limit(limit).toArray((_: any, colls: any) => callback(colls));
     }
 
-    findSomeOneSync(collection: string, query: object, projectile: object, callback = () => {}) {
+    findSomeOneSync(collection: string, query: object, projectile: object, callback = () => {}): void {
         this.findSomeSync(collection, query, projectile, callback, 1);
     }
 
-    getNextSequenceSync(collection: string, callback: (data: any) => void) {
+    getNextSequenceSync(collection: string, callback: (data: any) => void): void {
         this.countSync(collection, {}, callback);
     }
 
-    countSync(collection: string, query: object, callback: (data: any) => void = () => {}) {
+    countSync(collection: string, query: object, callback: (data: any) => void = () => {}): void {
         if(collection === null || query === null) {
             callback(null);
             return;
