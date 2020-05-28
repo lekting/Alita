@@ -1,4 +1,4 @@
-import { IgApiClient } from 'instagram-private-api';
+import { AccountRepositoryLoginResponseLogged_in_user, IgApiClient } from 'instagram-private-api';
 import fs from 'fs';
 import mongoWorker from './mongoWorker';
 
@@ -6,8 +6,8 @@ const inquirer = require('inquirer');
 
 export default class instagram {
 
-    user: any = null;
-    ig: any = null;
+    user: AccountRepositoryLoginResponseLogged_in_user = null;
+    ig: IgApiClient = null;
     
     private login: string = '';
     private password: string = '';
@@ -15,7 +15,7 @@ export default class instagram {
     private expire_time: number = 86400;
     private forbidden_names: Array<string> = [ 'shop', 'anime', 'magazin' ];
 
-    constructor(login: string, password: string, mongo: any) {
+    constructor(login: string, password: string, mongo: mongoWorker) {
         this.login = login;
         this.password = password;
         this.mongoClient = mongo;
@@ -40,7 +40,15 @@ export default class instagram {
         return Math.floor(min + Math.random() * (max + 1 - min));
     }
 
-    follow(search_query: string = 'фильмы', count: number = -1): Promise<number> {
+    forbidden(username: string): boolean {
+        for(let txt of this.forbidden_names)
+            if(username.includes(txt))
+                return true;
+
+        return false;
+    }
+
+    follow(search_query: string = 'фильмы', count?: number): Promise<number> {
         return new Promise(async (resolve, reject) => {
 
             //TODO: replace to function tags().sections();
@@ -56,14 +64,14 @@ export default class instagram {
 
             let followers = await this.ig.feed.accountFollowers(body.sections[1].layout_content.medias[this.random(0, 2)].media.user.pk).items();
 
-            let max: number = count === -1 ? this.random(5, followers.length) : count;
+            let max = count || this.random(5, followers.length);
 
-            let i: number = 0;
+            let i = 0;
             for(let follower of followers) {
                 if(i >= max)
                     break;
 
-                if(follower.is_private || follower.is_verified)
+                if(follower.is_private || follower.is_verified || this.forbidden(follower.username))
                     continue;
 
                 let finded = await this.mongoClient.findSomeOne('alita_followed', { pk: follower.pk }, { pk: 1 });
@@ -83,7 +91,7 @@ export default class instagram {
         });
     }
 
-    unfollow(count: number = -1): Promise<number> {
+    unfollow(count?: number): Promise<number> {
         return new Promise(async (resolve, reject) => {
         
             let followers = await this.ig.feed.accountFollowers(this.user.pk).items();
@@ -103,7 +111,7 @@ export default class instagram {
                     unsubcribe.push(flwed.pk);
             }
             
-            let max: number = count === -1 ? this.random(5, unsubcribe.length) : count;
+            let max: number = count || this.random(5, unsubcribe.length);
     
             let i: number = 0
             for(let unflw of unsubcribe) {
@@ -119,14 +127,6 @@ export default class instagram {
 
             resolve(i);
         });
-    }
-
-    getUser(): any {
-        return this.user;
-    }
-
-    getIg(): any {
-        return this.ig;
     }
 
     upperSticker = (width: number, height: number) => ({
@@ -156,7 +156,7 @@ export default class instagram {
     async init(): Promise<any> {
         return new Promise(async (resolve, reject) => {
             await this.ig.simulate.preLoginFlow();
-            this.ig.account.login(this.login, this.password).then(async (user: any) => {
+            this.ig.account.login(this.login, this.password).then(async (user: AccountRepositoryLoginResponseLogged_in_user) => {
                 process.nextTick(async () => await this.ig.simulate.postLoginFlow());
                 this.user = user;
                 resolve();
@@ -181,14 +181,14 @@ export default class instagram {
         });
     }
 
-    async uploadPhoto(pth: string, caption: string) {
+    async uploadPhoto(pth: string, caption: string): Promise<any> {
         return await this.ig.publish.photo({
             file: await fs.readFileSync(pth),
             caption: caption,
         });
     }
 
-    async uploadVideo(pth: string, caption: string, cover_pth: string) {
+    async uploadVideo(pth: string, caption: string, cover_pth: string): Promise<any> {
         return await this.ig.publish.video({
             video: await fs.readFileSync(pth),
             coverImage: await fs.readFileSync(cover_pth),
@@ -196,7 +196,7 @@ export default class instagram {
         });
     }
   
-    async uploadStoryWithHashtags(file: any) {
+    async uploadStoryWithHashtags(file: any): Promise<any> {
         return await this.ig.publish.story({
             file,
             hashtags: [{
@@ -228,7 +228,7 @@ export default class instagram {
         });
     } */
     
-    async uploadStoryWithMedia(file: any) {
+    async uploadStoryWithMedia(file: any): Promise<any> {
         const { pk } = (await this.ig.feed.user(this.ig.state.cookieUserId).items())[0];
         return await this.ig.publish.story({
             file,
@@ -240,7 +240,7 @@ export default class instagram {
         });
     }
     
-    async uploadStoryWithPoll(file: any, text: string, vote1: string, vote2: string) {
+    async uploadStoryWithPoll(file: any, text: string, vote1: string, vote2: string): Promise<any> {
         return await this.ig.publish.story({
             file,
             poll: {
@@ -262,7 +262,7 @@ export default class instagram {
         });
     }
     
-    async uploadStoryWithSlider(file: any, text: string) {
+    async uploadStoryWithSlider(file: any, text: string): Promise<any> {
         return await this.ig.publish.story({
             file,
             slider: {
@@ -277,7 +277,7 @@ export default class instagram {
         });
     }
     
-    async uploadStoryWithQuestion(file: any, text: string) {
+    async uploadStoryWithQuestion(file: any, text: string): Promise<any> {
         return await this.ig.publish.story({
             file,
             question: {
@@ -293,7 +293,7 @@ export default class instagram {
         });
     }
     
-    async uploadStoryWithCountdown(file: any, text: string, end: any) {
+    async uploadStoryWithCountdown(file: any, text: string, end: any): Promise<any> {
         return await this.ig.publish.story({
             file,
             countdown: {

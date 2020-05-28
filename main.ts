@@ -1,34 +1,40 @@
 import colors from 'colors';
 import mongoWorker from './mongoWorker';
 import instagram from './instagram';
+import telegram from './bot';
 
-const MongoClient 	 = require('mongodb').MongoClient;
+const MongoClient = require('mongodb').MongoClient;
 
 //let bot = require('./bot');
 let mongoClient: Promise<any> = connectDB();
 
 let args: Array<string> = process.argv.slice(2);
 
-let login: string    = args[0] || 'test',
-    password: string = args[1] || 'test';
+let login   : string    = args[0] || 'test',
+    password: string    = args[1] || 'test';
 
 mongoClient.then(async (client: any) => {
 
     let mc: mongoWorker = new mongoWorker('films', client);
     console.log(colors.bold(colors.green('MongoDB загружен')));
+    
+    
+    let bot: telegram = new telegram(null);
 
-    let inst: instagram = new instagram(login, password, mc);
+    await bot.init();
+    console.log(colors.bold(colors.green('TelegramBot загружен')));
+
+    /* let inst: instagram = new instagram(login, password, mc);
     await inst.init();
 
-    console.log(colors.bold(colors.green('Instagram загружен')));
+    console.log(colors.bold(colors.green('Instagram загружен'))); */
 
-    //bot = new bot(instagram);
 
     /* let max = await inst.follow();
     console.log(colors.bold(colors.green(`Подписки сделаны [${max}]`))); */
 
-    let max = await inst.unfollow(10);
-    console.log(colors.bold(colors.green(`Отписки сделаны [${max}]`)));
+    /* let max = await inst.unfollow(10);
+    console.log(colors.bold(colors.green(`Отписки сделаны [${max}]`))); */
     
 
     /* let desc: string = 'Смотрите это аниме в нашем телеграм канале, ссылка в описании группы!';
