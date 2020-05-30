@@ -18,13 +18,23 @@ mongoClient.then(async (client: any) => {
     let mc: mongoWorker = new mongoWorker('films', client);
     console.log(colors.bold(colors.green('MongoDB загружен')));
     
-    
     let inst: instagram = new instagram(login, password, mc);
-    //await inst.init();
+    let err = await inst.init();
+
+    if(err) {
+        console.log(colors.bold(colors.green('Ошибка instagram')));
+        console.log(err);
+        process.exit(0);
+        return;
+    }
+    console.log(colors.bold(colors.green('Instagram загружен')));
 
     let bot: telegram = new telegram(inst);
     await bot.init();
     console.log(colors.bold(colors.green('TelegramBot загружен')));
+    
+    /* let max = await inst.follow();
+    console.log(colors.bold(colors.green(`Подписки сделаны [${max}]`))); */
 
     /*
 

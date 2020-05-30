@@ -1,9 +1,11 @@
 import telegram_module from './module';
 import telegram from '../bot';
+import fs from 'fs';
 
 import action_types from './actions'
 
 interface message {
+    _id?: string,
     id: string;
     msg: string;
     image?: string;
@@ -22,15 +24,21 @@ export default class make_post extends telegram_module {
 
         setInterval(async () => {
             let current = Math.round(new Date().getTime() / 1000);
-            let actions = await this.telegram.instagram.mongoClient.findSome('deferred', { time: { $lt: current } });
+            let actions: Array<message> = await this.telegram.instagram.mongoClient.findSome('deferred', { time: { $lt: current } });
             if(!actions || actions.length === 0)
                 return;
 
             for(let action of actions) {
+                await this.telegram.instagram.mongoClient.deleteSome('deferred', { _id: action._id });
+                
+                if(action.video) {
+                    await this.telegram.instagram.uploadVideo(`./videos/${action.id}/${action.video}_rend.mp4`, `${action.msg}`, `./photos/${action.id}/${action.image}_rend.jpg`);
+                    
+                    fs.unlinkSync(`./videos/${action.id}/${action.video}_rend.mp4`);
+                } else
+                    await this.telegram.instagram.uploadPhoto(`./photos/${action.id}/${action.image}_rend.jpg`, `${action.msg}`);
 
-                this.telegram.instagram.uploadPhoto(`./photos/${action.id}/${action.image}_rend.jpg`, 'test');
-
-                await this.telegram.instagram.mongoClient.deleteSome('deferred', { _id: action._id })
+                fs.unlinkSync(`./photos/${action.id}/${action.image}_rend.jpg`);
             }
         }, 5000);
     }
@@ -62,7 +70,7 @@ export default class make_post extends telegram_module {
     }
     
     action(message: any): Promise<any> {
-        return new Promise(async (resolve, reject) => {
+        return new Promise(async (resolve, _) => {
             let usr_id = message.chat.id;
 
             let act = this.telegram.getAction(usr_id);
@@ -102,7 +110,7 @@ export default class make_post extends telegram_module {
     }
 
     proccess_creating_post(message: any): Promise<any> {
-        return new Promise(async (resolve, reject) => {
+        return new Promise(async (resolve, _) => {
             let usr_id = message.chat.id;
 
             let last_post_msg = this.getMessage(usr_id);
@@ -126,6 +134,16 @@ export default class make_post extends telegram_module {
             if(message.photo) {
                 last_post_msg.image = message.photo[0].file_id.substring(0, 32);
                 last_post_msg.msg = message.caption;
+                
+                let err = await this.telegram.downloadPhoto(message.chat.id, message.photo[0].file_id);
+
+                if(err) {
+                    this.telegram.sendText(usr_id, 'Произошла ошибка при обработке фото: ' + err);
+                    this.remove(usr_id);
+                    await this.sendWelcome(usr_id);
+                    resolve();
+                    return;
+                }
 
                 await this.telegram.sendPhotoAndKeyboard(usr_id, last_post_msg.msg, message.photo[0].file_id, [
                     [{
@@ -142,6 +160,16 @@ export default class make_post extends telegram_module {
                 last_post_msg.image = message.video.thumb.file_id.substring(0, 32);
                 last_post_msg.video = message.video.file_id.substring(0, 32);
                 last_post_msg.msg = message.caption;
+                
+                let err = await this.telegram.downloadVideo(message.chat.id, message);
+
+                if(err) {
+                    this.telegram.sendText(usr_id, 'Произошла ошибка при обработке видео: ' + err);
+                    this.remove(usr_id);
+                    await this.sendWelcome(usr_id);
+                    resolve();
+                    return;
+                }
 
                 await this.telegram.sendVideoAndKeyboard(usr_id, last_post_msg.msg, message.video.file_id, [
                     [{
@@ -168,7 +196,7 @@ export default class make_post extends telegram_module {
     }
 
     proccess_setting_time(message: any): Promise<any> {
-        return new Promise(async (resolve, reject) => {
+        return new Promise(async (resolve, _) => {
             let splitted: Array<string> = message.text.split(' ');
             if(splitted.length < 4) {
                 await this.telegram.sendText(message.chat.id, 'Дата указана неверно');
@@ -191,8 +219,8 @@ export default class make_post extends telegram_module {
                 if((parseInt(hour) > 24 || parseInt(hour) < 0)
                     || (parseInt(minutes) > 59 || parseInt(minutes) < 0)
                     || (parseInt(date) > 31 || parseInt(date) < 0)
-                    || (parseInt(month) > 12 || parseInt(month) < 0))
-                {
+                    || (parseInt(month) > 12 || parseInt(month) < 0)
+                ){
 
                     await this.telegram.sendText(usr_id, 'Дата указана неверно');
                     
@@ -205,7 +233,7 @@ export default class make_post extends telegram_module {
                 let proved_date = new Date(`${current.getFullYear()}-${month}-${date}T${hour}:${minutes}:00Z`);
 
                 if(proved_date.getTime() < current.getTime()) {
-                    await this.telegram.sendText(usr_id, 'Укажите дату, которая будет больше чем текущая на 1 минуту');
+                    await this.telegram.sendText(usr_id, 'Укажите дату, которая будет больше, чем текущая на 1 минуту');
                     resolve();
                     return;
                 }
@@ -213,8 +241,6 @@ export default class make_post extends telegram_module {
                 let last_post_msg = this.getMessage(usr_id);
                 last_post_msg.time = proved_date.getTime() / 1000;
 
-                //TODO: in database
-                //this.temp.push(last_post_msg);
                 await this.telegram.instagram.mongoClient.insertSomeOne('deferred', last_post_msg);
 
                 this.remove(usr_id);
@@ -237,7 +263,7 @@ export default class make_post extends telegram_module {
     }
 
     actionQuery(message: any): Promise<any> {
-        return new Promise(async (resolve, reject) => {
+        return new Promise(async (resolve, _) => {
             if(message.data === action_types.CREATING_POST) {
                 this.telegram.changeAction(message.message.chat.id, action_types.CREATING_POST);
 

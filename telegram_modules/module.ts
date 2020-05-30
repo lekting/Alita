@@ -11,24 +11,22 @@ export default class telegram_module {
         this.telegram = telegram;
     }
 
-    action(message: any): Promise<any> {
-        return new Promise((resolve, reject) => resolve('Not implemented'));
+    action(_: any): Promise<any> {
+        return new Promise((resolve, _) => resolve('Not implemented'));
     }
 
-    actionQuery(message: any): Promise<any> {
-        return new Promise((resolve, reject) => resolve('Not implemented'));
+    actionQuery(_: any): Promise<any> {
+        return new Promise((resolve, _) => resolve('Not implemented'));
     }
 
     sendWelcome(id: string): Promise<any>{
-        return new Promise(async (resolve, reject) => {
+        return new Promise(async (resolve, _) => {
             await this.telegram.sendInlineKeyboard(id, 'Здесь вы можете создавать посты, просматривать статистику и выполнять другие задачи.', [
                 [{
                     text: 'Создать пост', callback_data: action_types.CREATING_POST
                 }],
                 [{
-                    text: 'Отложенные', callback_data: 'later',
-                },{
-                    text: 'Редактировать', callback_data: 'edit'
+                    text: 'Отложенные', callback_data: action_types.DEFFERED,
                 }]
             ]);
 

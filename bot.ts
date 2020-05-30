@@ -62,7 +62,7 @@ export default class bot {
     } */
 
     init(): Promise<any> {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve, _) => {
             this.bot = new telegram ({ token: this.token, updates: { enabled: true } });
 
             this.bot.on('inline.callback.query', async (message: any) => {
@@ -71,14 +71,7 @@ export default class bot {
 
             //TODO: message_object interface
             this.bot.on('message', async (message: any) => {
-                console.log(message);
-                if(message.video)
-                    await this.downloadVideo(message.chat.id, message);
-                else if(message.photo)
-                    await this.downloadPhoto(message.chat.id, message.photo[0].file_id);
-
                 await this.modules[0].action(message);
-
             });
             resolve();
         });
@@ -149,7 +142,7 @@ export default class bot {
 
     downloadPhoto(chat_id: string, file_id: string): Promise<any> {
         return new Promise((resolve, reject) => {
-            request('https://api.telegram.org/bot' + this.token + '/getFile?file_id=' + file_id, (error, response, body) => {
+            request('https://api.telegram.org/bot' + this.token + '/getFile?file_id=' + file_id, (_, response, body) => {
                 body = JSON.parse(body);
 
                 let file_name = file_id.substring(0, 32) + path.extname(body.result.file_path.split('/')[1]);
@@ -157,7 +150,10 @@ export default class bot {
                     directory: './photos/' + chat_id,
                     filename: file_name
                 }, (err: any) => {
-                    if (err) throw err
+                    if (err) {
+                        resolve(err);
+                        return;
+                    }
 
                     setTimeout(() => {
                         sharp(`./photos/${chat_id}/${file_name}`)
@@ -176,8 +172,14 @@ export default class bot {
     downloadVideo(chat_id: string, message: any): Promise<any> {
         return new Promise((resolve, reject) => {
             let file_id = message.video.file_id;
-            request('https://api.telegram.org/bot' + this.token + '/getFile?file_id=' + file_id, async (error, response, body) => {
+            request('https://api.telegram.org/bot' + this.token + '/getFile?file_id=' + file_id, async (_, response, body) => {
                 body = JSON.parse(body);
+
+                if(body.error) {
+                    this.sendText(chat_id, 'Видео слишком большое (можна до 20МБ)');
+                    resolve(body.description);
+                    return;
+                }
 
                 await this.downloadPhoto(chat_id, message.video.thumb.file_id)
 
@@ -193,11 +195,11 @@ export default class bot {
 
                     setTimeout(() => {
                         ffmpeg(`./videos/${chat_id}/${file_name}`)
-                        .output(`./videos/${chat_id}/${file_id.substring(0, 32)}-rend.mp4`)
+                        .output(`./videos/${chat_id}/${file_id.substring(0, 32)}_rend.mp4`)
                         .videoCodec('libx264')
                         .size('1080x1200')
                         .on('error', (err: any) => {
-                            this.sendText(chat_id, 'Произошла ошибка при обработке видео: ' + err.getMessage());
+                            resolve(err);
                         })
                         .on('end', () => {
                             fs.unlinkSync(`./videos/${chat_id}/${file_name}`);
@@ -229,7 +231,7 @@ export default class bot {
         let request = (url.parse(file).protocol === 'https:' ? https : http).get(file, (response: any) => {
 
             if (response.statusCode === 200) {
-                mkdirp(options.directory).then((made: string) => {
+                mkdirp(options.directory).then((_: string) => {
                     response.pipe(fs.createWriteStream(path));
                 }).catch((err: any) => {
                     if (callback)

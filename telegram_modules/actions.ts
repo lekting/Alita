@@ -1,4 +1,5 @@
 export default {
     CREATING_POST: '1',
-    SETTING_TIME: '2'
+    SETTING_TIME: '2',
+    DEFFERED: '3'
 };
