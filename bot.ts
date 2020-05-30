@@ -9,9 +9,13 @@ import fs from 'fs';
 import url from 'url';
 import http from 'http';
 import https from 'https';
+import path from 'path';
 
-const mkdirp   = require('mkdirp');
-const telegram = require('telegram-bot-api');
+const mkdirp    = require('mkdirp');
+const telegram  = require('telegram-bot-api');
+const ffmpeg    = require('fluent-ffmpeg');
+
+const sharp     = require('sharp');
 
 interface action {
     id: string;
@@ -25,7 +29,7 @@ export default class bot {
 
     private token: string = '';
 
-    private modules: Array<telegram_module> = [ new make_post() ];
+    private modules: Array<telegram_module> = [ new make_post(this) ];
     private actions: Array<action> = [];
 
     constructor(inst: instagram) {
@@ -62,36 +66,19 @@ export default class bot {
             this.bot = new telegram ({ token: this.token, updates: { enabled: true } });
 
             this.bot.on('inline.callback.query', async (message: any) => {
-                this.modules[0].actionQuery(message, this);
-
+                this.modules[0].actionQuery(message);
             });
 
             //TODO: message_object interface
             this.bot.on('message', async (message: any) => {
-                this.modules[0].action(message, this);
-                /* if(message.text === 'Subscribe') {
-                    return;
-                }
-    
-                if(message.video) {
-                    this.downloadVideo(message.video.file_id);
-                } else if(message.photo) {
-                    this.downloadPhoto(message.photo.file_id);
-                } else {
-                    this.bot.sendMessage({
-                        chat_id: message.chat.id,
-                        text: 'Выбери действие урод',
-                        reply_markup: JSON.stringify({
-                            keyboard: [
-                                {
-                                    text: 'Subscribe'
-                                },
-                            ],
-                           resize_keyboard: true
-                        })
-                    })
-                } */
-                
+                console.log(message);
+                if(message.video)
+                    await this.downloadVideo(message.chat.id, message);
+                else if(message.photo)
+                    await this.downloadPhoto(message.chat.id, message.photo[0].file_id);
+
+                await this.modules[0].action(message);
+
             });
             resolve();
         });
@@ -109,6 +96,30 @@ export default class bot {
             text: text,
             reply_markup: JSON.stringify({
                 inline_keyboard: keyboard,
+            })
+        });
+    }
+
+    sendVideoAndKeyboard(id: string, text: string, video: string, keyboard: Array<any>): Promise<any> {
+        return this.bot.sendVideo({
+            chat_id: id,
+            caption: text,
+            video: video,
+            reply_markup: JSON.stringify({
+                keyboard: keyboard,
+                resize_keyboard: true
+            })
+        });
+    }
+
+    sendPhotoAndKeyboard(id: string, text: string, photo: string, keyboard: Array<any>): Promise<any> {
+        return this.bot.sendPhoto({
+            chat_id: id,
+            caption: text,
+            photo: photo,
+            reply_markup: JSON.stringify({
+                keyboard: keyboard,
+                resize_keyboard: true
             })
         });
     }
@@ -136,33 +147,65 @@ export default class bot {
         })
     }
 
-    downloadPhoto(file_id: number): Promise<any> {
+    downloadPhoto(chat_id: string, file_id: string): Promise<any> {
         return new Promise((resolve, reject) => {
             request('https://api.telegram.org/bot' + this.token + '/getFile?file_id=' + file_id, (error, response, body) => {
                 body = JSON.parse(body);
 
+                let file_name = file_id.substring(0, 32) + path.extname(body.result.file_path.split('/')[1]);
                 this.download('https://api.telegram.org/file/bot' + this.token + '/' + body.result.file_path, {
-                    directory: './photos/',
-                    filename: body.result.file_path.split('/')[1]
+                    directory: './photos/' + chat_id,
+                    filename: file_name
                 }, (err: any) => {
                     if (err) throw err
-                    resolve();
+
+                    setTimeout(() => {
+                        sharp(`./photos/${chat_id}/${file_name}`)
+                        .resize(1080, 1083)
+                        .toFile(`./photos/${chat_id}/${file_id.substring(0, 32)}_rend.jpg`)
+                        .then(() => {
+                            fs.unlinkSync(`./photos/${chat_id}/${file_name}`);
+                            resolve();
+                        });
+                    }, 1000);
                 })
             });
         });
     }
 
-    downloadVideo(file_id: number): Promise<any> {
+    downloadVideo(chat_id: string, message: any): Promise<any> {
         return new Promise((resolve, reject) => {
-            request('https://api.telegram.org/bot' + this.token + '/getFile?file_id=' + file_id, (error, response, body) => {
+            let file_id = message.video.file_id;
+            request('https://api.telegram.org/bot' + this.token + '/getFile?file_id=' + file_id, async (error, response, body) => {
                 body = JSON.parse(body);
 
+                await this.downloadPhoto(chat_id, message.video.thumb.file_id)
+
+                let file_name = file_id.substring(0, 32) + path.extname(body.result.file_path.split('/')[1]);
+
                 this.download('https://api.telegram.org/file/bot' + this.token + '/' + body.result.file_path, {
-                    directory: './videos/',
-                    filename: body.result.file_path.split('/')[1]
+                    directory: `./videos/${chat_id}`,
+                    filename: file_name
                 }, async (err: any) => {
                     if (err) throw err
-                    resolve();
+
+                    this.sendText(chat_id, 'Ожидайте, видео обрабатывается...');
+
+                    setTimeout(() => {
+                        ffmpeg(`./videos/${chat_id}/${file_name}`)
+                        .output(`./videos/${chat_id}/${file_id.substring(0, 32)}-rend.mp4`)
+                        .videoCodec('libx264')
+                        .size('1080x1200')
+                        .on('error', (err: any) => {
+                            this.sendText(chat_id, 'Произошла ошибка при обработке видео: ' + err.getMessage());
+                        })
+                        .on('end', () => {
+                            fs.unlinkSync(`./videos/${chat_id}/${file_name}`);
+                            resolve();
+                        })
+                        .run();
+                    }, 1000);
+
                 })
             });
         });
@@ -186,16 +229,12 @@ export default class bot {
         let request = (url.parse(file).protocol === 'https:' ? https : http).get(file, (response: any) => {
 
             if (response.statusCode === 200) {
-
-                mkdirp(options.directory, (err: any) => { 
-                    if (err) {
-                        if (callback)
-                            callback(err);
-
-                        return;
-                    }
+                mkdirp(options.directory).then((made: string) => {
                     response.pipe(fs.createWriteStream(path));
-                })
+                }).catch((err: any) => {
+                    if (callback)
+                        callback(err);
+                });
 
             } else {
                 if (callback)

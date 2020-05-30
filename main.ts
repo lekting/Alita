@@ -19,13 +19,14 @@ mongoClient.then(async (client: any) => {
     console.log(colors.bold(colors.green('MongoDB загружен')));
     
     
-    let bot: telegram = new telegram(null);
+    let inst: instagram = new instagram(login, password, mc);
+    //await inst.init();
 
+    let bot: telegram = new telegram(inst);
     await bot.init();
     console.log(colors.bold(colors.green('TelegramBot загружен')));
 
-    /* let inst: instagram = new instagram(login, password, mc);
-    await inst.init();
+    /*
 
     console.log(colors.bold(colors.green('Instagram загружен'))); */
 

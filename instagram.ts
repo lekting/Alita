@@ -20,8 +20,6 @@ export default class instagram {
         this.password = password;
         this.mongoClient = mongo;
         this.ig = new IgApiClient();
-
-        this.ig.state.generateDevice(this.login);
     }
 
     has(arr: Array<any>, field: string, data: any): boolean {
@@ -48,8 +46,10 @@ export default class instagram {
         return false;
     }
 
-    follow(search_query: string = 'фильмы', count?: number): Promise<number> {
+    follow(search_query?: string, count?: number): Promise<number> {
         return new Promise(async (resolve, reject) => {
+
+            search_query = search_query || 'фильмы';
 
             //TODO: replace to function tags().sections();
             let { body } = await this.ig.request.send({
@@ -155,6 +155,7 @@ export default class instagram {
 
     async init(): Promise<any> {
         return new Promise(async (resolve, reject) => {
+            this.ig.state.generateDevice(this.login);
             await this.ig.simulate.preLoginFlow();
             this.ig.account.login(this.login, this.password).then(async (user: AccountRepositoryLoginResponseLogged_in_user) => {
                 process.nextTick(async () => await this.ig.simulate.postLoginFlow());

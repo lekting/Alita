@@ -1,6 +1,7 @@
 # node.js
 node_modules/
 videos/
+photos/
 npm-debug.log
 yarn-error.log
 package-lock.json
