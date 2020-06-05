@@ -23,7 +23,7 @@ export default class make_post extends telegram_module {
         super('make_post', telegram);
 
         setInterval(async () => {
-            let current = Math.round(new Date().getTime() / 1000);
+            let current = this.getTime().unix();
             let actions: Array<message> = await this.telegram.instagram.mongoClient.findSome('deferred', { time: { $lt: current } });
             if(!actions || actions.length === 0)
                 return;
@@ -117,9 +117,9 @@ export default class make_post extends telegram_module {
             if(message.text === 'Дальше' && last_post_msg && last_post_msg.msg !== '') {
                 this.telegram.changeAction(usr_id, action_types.SETTING_TIME);
                 
-                let proved_date = new Date();
+                let proved_date = this.getTime();
 
-                await this.telegram.sendKeyboard(usr_id, `Введите время в формате: час минуты дата месяц (Пример: 03 00 11 02). \nТекущее время: ${proved_date.getUTCDate()} ${this.months[proved_date.getUTCMonth()]} ${proved_date.getUTCFullYear()}, ${('0' + proved_date.getUTCHours()).slice(-2)}:${('0' + proved_date.getUTCMinutes()).slice(-2)}`, [
+                await this.telegram.sendKeyboard(usr_id, `Введите время в формате: час минуты дата месяц (Пример: 03 00 11 02). \nТекущее время: ${proved_date.date()} ${this.months[proved_date.month()]} ${proved_date.year()}, ${('0' + proved_date.hours()).slice(-2)}:${('0' + proved_date.minutes()).slice(-2)}`, [
                     [{
                         text: 'Отменить'
                     }],
@@ -211,10 +211,10 @@ export default class make_post extends telegram_module {
                 let date = splitted[2];
                 let month = splitted[3];
 
-                hour = hour.length === 1 ? '0' + hour : hour;
-                minutes = minutes.length === 1 ? '0' + minutes : minutes;
-                date = date.length === 1 ? '0' + date : date;
-                month = month.length === 1 ? '0' + month : month;
+                hour = ('0' + hour).slice(-2);
+                minutes = ('0' + minutes).slice(-2);
+                date = ('0' + date).slice(-2);
+                month = ('0' + month).slice(-2);
 
                 if((parseInt(hour) > 24 || parseInt(hour) < 0)
                     || (parseInt(minutes) > 59 || parseInt(minutes) < 0)
@@ -228,25 +228,32 @@ export default class make_post extends telegram_module {
                     return;
                 }
 
-                let current = new Date();
+                let current = this.getTime();
 
-                let proved_date = new Date(`${current.getFullYear()}-${month}-${date}T${hour}:${minutes}:00Z`);
+                let proved_date = this.getTime();
 
-                if(proved_date.getTime() < current.getTime()) {
+                //new Date(`${current.getFullYear()}-${month}-${date}T${hour}:${minutes}:00Z`)
+
+                proved_date.date(parseInt(date));
+                proved_date.month(parseInt(month) - 1);
+                proved_date.hours(parseInt(hour));
+                proved_date.minutes(parseInt(minutes));
+
+                if(proved_date.unix() < current.unix()) {
                     await this.telegram.sendText(usr_id, 'Укажите дату, которая будет больше, чем текущая на 1 минуту');
                     resolve();
                     return;
                 }
 
                 let last_post_msg = this.getMessage(usr_id);
-                last_post_msg.time = proved_date.getTime() / 1000;
+                last_post_msg.time = proved_date.unix();
 
                 await this.telegram.instagram.mongoClient.insertSomeOne('deferred', last_post_msg);
 
                 this.remove(usr_id);
 
                 await this.telegram.sendMessage(usr_id, {
-                    text: `Создан отложенный пост. Будет опубликован ${proved_date.getUTCDate()} ${this.months[proved_date.getUTCMonth()]} ${proved_date.getUTCFullYear()}, ${('0' + proved_date.getUTCHours()).slice(-2)}:${('0' + proved_date.getUTCMinutes()).slice(-2)}`,
+                    text: `Создан отложенный пост. Будет опубликован ${proved_date.date()} ${this.months[proved_date.month()]} ${proved_date.year()}, ${('0' + proved_date.hours()).slice(-2)}:${('0' + proved_date.minutes()).slice(-2)}`,
                     reply_markup: JSON.stringify({
                         remove_keyboard: true
                     })

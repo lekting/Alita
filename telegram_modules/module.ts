@@ -1,6 +1,8 @@
 import telegram from '../bot';
 import action_types from './actions'
 
+import Moment from 'moment-timezone';
+
 export default class telegram_module {
 
     name: string;
@@ -9,6 +11,10 @@ export default class telegram_module {
     constructor(name: string, telegram: telegram) {
         this.name = name;
         this.telegram = telegram;
+    }
+
+    protected getTime(): Moment.Moment {
+        return Moment().tz('Europe/Kiev');
     }
 
     action(_: any): Promise<any> {

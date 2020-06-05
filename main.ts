@@ -25,13 +25,13 @@ mongoClient.then(async (client: any) => {
         console.log(colors.bold(colors.green('Ошибка instagram')));
         console.log(err);
         process.exit(0);
-        return;
     }
+    
     console.log(colors.bold(colors.green('Instagram загружен')));
 
     let bot: telegram = new telegram(inst);
     await bot.init();
-    console.log(colors.bold(colors.green('TelegramBot загружен')));
+    console.log(colors.bold(colors.green('Telegram загружен')));
     
     /* let max = await inst.follow();
     console.log(colors.bold(colors.green(`Подписки сделаны [${max}]`))); */

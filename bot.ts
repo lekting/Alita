@@ -31,6 +31,7 @@ export default class bot {
 
     private modules: Array<telegram_module> = [ new make_post(this) ];
     private actions: Array<action> = [];
+    private admins: Array<string> = [ '192181835' ]
 
     constructor(inst: instagram) {
         this.instagram = inst;
@@ -66,11 +67,21 @@ export default class bot {
             this.bot = new telegram ({ token: this.token, updates: { enabled: true } });
 
             this.bot.on('inline.callback.query', async (message: any) => {
+                if(!this.admins.includes('' + message.from.id)) {
+
+                    return;
+                }
+
+
                 this.modules[0].actionQuery(message);
             });
 
             //TODO: message_object interface
             this.bot.on('message', async (message: any) => {
+                if(!this.admins.includes('' + message.chat.id)) {
+
+                    return;
+                }
                 await this.modules[0].action(message);
             });
             resolve();
