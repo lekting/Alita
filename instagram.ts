@@ -71,10 +71,11 @@ export default class instagram {
             let followers = await this.ig.feed.accountFollowers(body.sections[1].layout_content.medias[this.random(0, 2)].media.user.pk).items();
 
             let max = count || this.random(5, followers.length);
-            console.log(colors.bold(colors.green(`Делаем подписки [${max}]`)));
 
-            if(max > 100)
+            if(max > 90)
                 max = 90;
+
+            console.log(colors.bold(colors.green(`Делаем подписки [${max}]`)));
 
             let i = 0;
             for(let follower of followers) {
@@ -123,11 +124,12 @@ export default class instagram {
                 }
                 
                 let max = count || this.random(5, unsubcribe.length);
-                console.log(colors.bold(colors.green(`Делаем отписки [${max}]`)));
 
-                if(max > 100)
+                if(max > 90)
                     max = 90;
         
+                console.log(colors.bold(colors.green(`Делаем отписки [${max}]`)));
+
                 for(let unflw of unsubcribe) {
                     if(i >= max)
                         break;
