@@ -19,13 +19,13 @@ mongoClient.then(async (client: any) => {
     console.log(colors.bold(colors.green('MongoDB загружен')));
     
     let inst: instagram = new instagram(login, password, mc);
-    let err = await inst.init();
+    /* let err = await inst.init();
 
     if(err) {
         console.log(colors.bold(colors.green('Ошибка instagram')));
         console.log(err);
         process.exit(0);
-    }
+    } */
     
     console.log(colors.bold(colors.green('Instagram загружен')));
 
@@ -36,16 +36,8 @@ mongoClient.then(async (client: any) => {
     /* let max = await inst.follow();
     console.log(colors.bold(colors.green(`Подписки сделаны [${max}]`))); */
 
-    /*
-
-    console.log(colors.bold(colors.green('Instagram загружен'))); */
-
-
-    /* let max = await inst.follow();
-    console.log(colors.bold(colors.green(`Подписки сделаны [${max}]`))); */
-
-    /* let max = await inst.unfollow(10);
-    console.log(colors.bold(colors.green(`Отписки сделаны [${max}]`))); */
+    /*let max = await inst.unfollow();
+    console.log(colors.bold(colors.green(`Отписки сделаны [${max}]`)));*/
     
 
     /* let desc: string = 'Смотрите это аниме в нашем телеграм канале, ссылка в описании группы!';

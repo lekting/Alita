@@ -75,37 +75,31 @@ export default class make_post extends telegram_module {
 
             let act = this.telegram.getAction(usr_id);
             if(act) {
+                switch(act.action) {
+                    case action_types.CREATING_POST: {
+                        if(await this.processCancel(message)) {
+                            this.remove(message.chat.id);
+                            break;
+                        }
 
-                if(message.text === 'Отменить') {
-                    await this.telegram.sendMessage(message.chat.id, {
-                        text: 'Создание поста отменено.',
-                        reply_markup: JSON.stringify({
-                            remove_keyboard: true
-                        })
-                    });
+                        this.proccess_creating_post(message);
+                        break;
+                    }
+                    case action_types.SETTING_TIME: {
+                        if(await this.processCancel(message)) {
+                            this.remove(message.chat.id);
+                            break;
+                        }
 
-                    this.remove(message.chat.id);
-                    
-                    await this.sendWelcome(message.chat.id);
-                } else {
-                    switch(act.action) {
-                        case action_types.CREATING_POST: {
-                            this.proccess_creating_post(message);
-                            break;
-                        }
-                        case action_types.SETTING_TIME: {
-                            this.proccess_setting_time(message);
-                            break;
-                        }
-                        default: {
-                            break;
-                        }
+                        this.proccess_setting_time(message);
+                        break;
                     }
                 }
-            } else
-                await this.sendWelcome(message.chat.id);
+            } else 
+                await this.telegram.sendWelcome(message.chat.id);
 
             resolve();
+
         });
     }
 
@@ -140,7 +134,7 @@ export default class make_post extends telegram_module {
                 if(err) {
                     this.telegram.sendText(usr_id, 'Произошла ошибка при обработке фото: ' + err);
                     this.remove(usr_id);
-                    await this.sendWelcome(usr_id);
+                    await this.telegram.sendWelcome(usr_id);
                     resolve();
                     return;
                 }
@@ -166,7 +160,7 @@ export default class make_post extends telegram_module {
                 if(err) {
                     this.telegram.sendText(usr_id, 'Произошла ошибка при обработке видео: ' + err);
                     this.remove(usr_id);
-                    await this.sendWelcome(usr_id);
+                    await this.telegram.sendWelcome(usr_id);
                     resolve();
                     return;
                 }
@@ -259,7 +253,7 @@ export default class make_post extends telegram_module {
                     })
                 })
 
-                await this.sendWelcome(usr_id);
+                await this.telegram.sendWelcome(usr_id);
 
             } catch(e) {
                 await this.telegram.sendText(usr_id, 'Дата указана неверно');

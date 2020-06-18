@@ -10,6 +10,9 @@ import url from 'url';
 import http from 'http';
 import https from 'https';
 import path from 'path';
+import parse_site from './telegram_modules/parse_site';
+
+import action_types from './telegram_modules/actions'
 
 const mkdirp    = require('mkdirp');
 const telegram  = require('telegram-bot-api');
@@ -29,7 +32,7 @@ export default class bot {
 
     private token: string = '';
 
-    private modules: Array<telegram_module> = [ new make_post(this) ];
+    private modules: Array<telegram_module> = [ new make_post(this), new parse_site(this) ];
     private actions: Array<action> = [];
     private admins: Array<string> = [ '192181835' ]
 
@@ -72,8 +75,8 @@ export default class bot {
                     return;
                 }
 
-
-                this.modules[0].actionQuery(message);
+                for(let module of this.modules)
+                    await module.actionQuery(message);
             });
 
             //TODO: message_object interface
@@ -82,7 +85,9 @@ export default class bot {
 
                     return;
                 }
-                await this.modules[0].action(message);
+
+                for(let module of this.modules)
+                    await module.action(message);
             });
             resolve();
         });
@@ -149,6 +154,41 @@ export default class bot {
             chat_id: id,
             ...data
         })
+    }
+
+    getKeyBoards(): Array<any> {
+        let arr = [];
+
+        for(let module of this.modules) {
+            if(module.buttons.length === 0)
+                continue;
+
+            arr.push(module.buttons);
+        }
+
+        return arr;
+    }
+
+    sendWelcome(id: string): Promise<any>{
+        return new Promise(async (resolve, _) => {
+            let keybaord = this.getKeyBoards();
+
+            keybaord.unshift([{
+                text: 'Отложенные', callback_data: action_types.DEFFERED,
+            }]);
+            keybaord.unshift([{
+                text: 'Создать пост', callback_data: action_types.CREATING_POST
+            }]);
+
+            await this.sendMessage(id, {
+                text: 'Здесь вы можете создавать посты, просматривать статистику и выполнять другие задачи.',
+                reply_markup: JSON.stringify({
+                    inline_keyboard: keybaord
+                })
+            });
+
+            resolve();
+        });
     }
 
     downloadPhoto(chat_id: string, file_id: string): Promise<any> {
